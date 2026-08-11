@@ -3,7 +3,7 @@ version: "3.9"
 services:
   # ── Kafka (KRaft mode — no ZooKeeper) ──────────────────────────────────────
   kafka:
-    image: bitnami/kafka:3.6.2
+    image: bitnami/kafka:latest
     container_name: podcast-kafka
     environment:
       KAFKA_CFG_NODE_ID: 1
