@@ -20,7 +20,7 @@ from .base import BaseFilterStrategy
 
 logger = logging.getLogger(__name__)
 
-RELEVANCE_THRESHOLD: Final[float] = 0.05
+RELEVANCE_THRESHOLD: Final[float] = 0.02
 
 
 class RelevanceFilter(BaseFilterStrategy):

@@ -557,7 +557,59 @@ Tests are written against the public interface of each class before the implemen
 
 ---
 
-## 12. Trade-offs & Known Constraints
+## 12. Script Validation & Feedback Loop
+
+Before synthesising any script to audio, the Generator runs a **ValidationPipeline** that gates on both deterministic and semantic quality signals.  This guards against hallucinated content and degenerate outputs without blocking the pipeline on transient infrastructure issues.
+
+### Validator Funnel (cheapest → most expensive)
+
+```
+Script
+  │
+  ▼
+WordCountValidator          — O(n) word split; rejects scripts outside per-duration bounds
+  │  pass
+  ▼
+BannedContentValidator      — regex scan; hard-blocks any profanity / harmful instructions
+  │  pass
+  ▼
+GroundednessValidator       — TF-IDF cosine similarity between script and source chunks ≥ 0.10
+  │  pass                     (lightweight "LLM-as-judge" proxy, no API call required)
+  ▼
+LLMJudgeValidator           — Claude Haiku scores groundedness 0–1; threshold 0.60
+  │  pass                     (enabled only when VALIDATION_LLM_ENABLED=true + ANTHROPIC_API_KEY set)
+  ▼
+TTS Synthesis
+```
+
+The funnel is ordered so that each expensive check is only reached if all cheaper checks pass.
+
+### Retry / Feedback Loop
+
+When validation fails the orchestrator retries up to **3 times**, expanding the `content_limit` (chars per chunk fed to the writer) by 50 % on each attempt so the script pulls in more verbatim source text, directly improving groundedness scores:
+
+```
+Attempt 1 — content_limit = base (e.g. 700 chars for medium)
+Attempt 2 — content_limit = 1.5× base  (validation critique logged as warning)
+Attempt 3 — content_limit = 2.0× base  (last chance)
+  → if still failing: podcast status → FAILED, exception raised
+```
+
+The `ValidationResult` from each failing step includes a `critique` string (reason for failure) that is logged and can be surfaced to monitoring.  A future extension could publish a `ScriptValidationFailed` Kafka event for external observability or human review queues.
+
+### LLM-as-Judge Design Rationale
+
+The `LLMJudgeValidator` is implemented but **disabled by default** (no API key required to run the system).  When enabled, it sends the generated script plus truncated source content to Claude Haiku with a structured JSON-output prompt.  Any API failure is treated as a **soft pass** (score = 0.5) so a transient network error never blocks audio delivery.
+
+The groundedness check uses TF-IDF cosine similarity as a deterministic, zero-cost proxy for the same question.  In practice this catches most hallucination cases (vocabulary absent from source ≈ invented facts) without API latency.
+
+### ADR-006: Validate before TTS, not after
+
+Synthesising a podcast with gTTS costs ~14 seconds of real time and external API quota.  Placing validation before TTS means bad scripts are detected in milliseconds (deterministic validators) or seconds (LLM judge), wasting no synthesis resources on content that would be rejected anyway.
+
+---
+
+## 13. Trade-offs & Known Constraints
 
 | Area | Current State | Production Recommendation |
 |---|---|---|

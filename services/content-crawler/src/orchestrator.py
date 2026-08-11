@@ -123,13 +123,26 @@ class CrawlerOrchestrator:
         # 4. Persist raw chunks
         await self._raw_repo.save(podcast_id, raw_chunks)
 
-        # 5. Filter — build a per-request pipeline with the actual topic for relevance scoring
+        # 5. Filter — primary sources (Wikipedia main article) always pass through;
+        # secondary sources run through quality + dedup + relevance scoring.
+        primary_chunks: list[dict] = []
+        secondary_chunks: list[dict] = []
+        for chunk in raw_chunks:
+            if chunk.pop("_primary", False):
+                primary_chunks.append(chunk)
+            else:
+                secondary_chunks.append(chunk)
+
         topic_pipeline = FilterPipeline(strategies=[
             self._quality_filter,
             self._dedup_filter,
             RelevanceFilter(topic),
         ])
-        filtered_chunks = topic_pipeline.run(raw_chunks)
+        filtered_secondary = topic_pipeline.run(secondary_chunks)
+        # Merge then deduplicate across primary + secondary so duplicate
+        # content (e.g. Wikipedia abstract repeated by DuckDuckGo) is removed.
+        merged = primary_chunks + filtered_secondary
+        filtered_chunks = self._dedup_filter.filter(merged)
 
         logger.info(
             "Filtered to %d chunks for podcastId=%r",

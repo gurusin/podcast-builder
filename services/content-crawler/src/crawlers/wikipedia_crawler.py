@@ -48,6 +48,9 @@ class WikipediaCrawler(BaseCrawler):
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS) as client:
                 # 1. Summary endpoint for the main article
+                # Tagged _primary=True so the orchestrator always includes it,
+                # bypassing the relevance filter (TF-IDF IDF issue when topic
+                # terms appear in every chunk).
                 summary_url = f"{_REST_BASE}/page/summary/{encoded}"
                 resp = await client.get(summary_url)
                 if resp.status_code == 200:
@@ -61,6 +64,7 @@ class WikipediaCrawler(BaseCrawler):
                                 .get("page", summary_url),
                                 "title": data.get("title", topic),
                                 "content": extract,
+                                "_primary": True,
                             }
                         )
 

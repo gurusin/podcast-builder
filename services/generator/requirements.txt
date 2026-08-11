@@ -1,6 +1,8 @@
 aiokafka==0.11.0
 pymongo>=4.9
 gTTS==2.5.1
+scikit-learn==1.4.2
+anthropic>=0.30.0
 dependency-injector==4.41.0
 pytest==8.1.1
 pytest-asyncio==0.23.6
