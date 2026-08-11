@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
 import { PodcastGeneratedEvent } from '../events/podcast-generated.event';
 import {
@@ -11,16 +11,12 @@ import {
 } from '../strategies/notification.strategy.interface';
 import { PodcastStatus } from '../../common/enums/podcast-status.enum';
 
-/**
- * KafkaConsumer (Observer pattern — subscriber side).
- * Subscribes to `podcast-generated`, updates the repository (write model) and
- * then delegates real-time notification to the injected INotificationStrategy
- * (Strategy pattern).  No concrete strategy is referenced here — DIP upheld.
- */
 @Injectable()
 export class KafkaConsumer implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(KafkaConsumer.name);
   private readonly kafka: Kafka;
   private readonly consumer: Consumer;
+  private running = false;
 
   constructor(
     @Inject(PODCAST_REPOSITORY)
@@ -32,42 +28,58 @@ export class KafkaConsumer implements OnModuleInit, OnModuleDestroy {
     this.kafka = new Kafka({
       clientId: 'request-processor-consumer',
       brokers: [broker],
+      retry: { retries: 5, initialRetryTime: 300 },
     });
-    this.consumer = this.kafka.consumer({
-      groupId: 'request-processor-group',
-    });
+    this.consumer = this.kafka.consumer({ groupId: 'request-processor-group' });
   }
 
-  async onModuleInit(): Promise<void> {
-    await this.consumer.connect();
-    await this.consumer.subscribe({
-      topic: 'podcast-generated',
-      fromBeginning: false,
-    });
+  // Non-blocking — starts retry loop in the background so the HTTP server
+  // is never held up by a slow Kafka broker.
+  onModuleInit(): void {
+    void this.startWithRetry();
+  }
 
-    await this.consumer.run({
-      eachMessage: async (payload: EachMessagePayload): Promise<void> => {
-        await this.handleMessage(payload);
-      },
-    });
+  async onModuleDestroy(): Promise<void> {
+    if (this.running) {
+      await this.consumer.disconnect();
+    }
+  }
+
+  private async startWithRetry(attempts = 10, delayMs = 3000): Promise<void> {
+    for (let i = 1; i <= attempts; i++) {
+      try {
+        await this.consumer.connect();
+        await this.consumer.subscribe({ topic: 'podcast-generated', fromBeginning: false });
+        await this.consumer.run({
+          eachMessage: async (payload: EachMessagePayload) => {
+            await this.handleMessage(payload);
+          },
+        });
+        this.running = true;
+        this.logger.log('Kafka consumer connected and listening on podcast-generated');
+        return;
+      } catch (err) {
+        this.logger.warn(`Kafka consumer connect attempt ${i}/${attempts} failed: ${(err as Error).message}`);
+        if (i < attempts) await this.delay(delayMs);
+      }
+    }
+    this.logger.error('Kafka consumer could not connect after all retries — status push via WebSocket will be unavailable');
   }
 
   private async handleMessage(payload: EachMessagePayload): Promise<void> {
     const raw = payload.message.value?.toString();
     if (!raw) return;
 
-    const event: PodcastGeneratedEvent = JSON.parse(raw) as PodcastGeneratedEvent;
-
-    await this.podcastRepository.updateStatus(
-      event.podcastId,
-      PodcastStatus.DONE,
-      event.filePath,
-    );
-
-    await this.notificationStrategy.notify(event.podcastId, PodcastStatus.DONE);
+    try {
+      const event = JSON.parse(raw) as PodcastGeneratedEvent;
+      await this.podcastRepository.updateStatus(event.podcastId, PodcastStatus.DONE, event.filePath);
+      await this.notificationStrategy.notify(event.podcastId, PodcastStatus.DONE);
+    } catch (err) {
+      this.logger.error(`Failed to handle podcast-generated message: ${(err as Error).message}`);
+    }
   }
 
-  async onModuleDestroy(): Promise<void> {
-    await this.consumer.disconnect();
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
