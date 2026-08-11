@@ -3,7 +3,7 @@
 import os
 
 from dependency_injector import containers, providers
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 
 from src.factories.standard_factory import StandardPodcastGeneratorFactory
 from src.factories.mock_factory import MockPodcastGeneratorFactory
@@ -23,7 +23,7 @@ def _build_factory(mode: str):
     return StandardPodcastGeneratorFactory()
 
 
-def _resolve_db(client: AsyncIOMotorClient, uri: str):
+def _resolve_db(client: AsyncMongoClient, uri: str):
     """
     Return the motor database.
 
@@ -44,7 +44,7 @@ class Container(containers.DeclarativeContainer):
 
     # ---------------------------------------------------------- MongoDB client
     mongo_client = providers.Singleton(
-        AsyncIOMotorClient,
+        AsyncMongoClient,
         config.mongodb_uri,
     )
 

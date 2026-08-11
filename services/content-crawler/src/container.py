@@ -35,7 +35,7 @@ event — the container provides all other strategies as singletons.
 import os
 
 from dependency_injector import containers, providers
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 
 from src.events.kafka_consumer import KafkaConsumer
 from src.events.kafka_producer import KafkaProducer
@@ -71,7 +71,7 @@ class Container(containers.DeclarativeContainer):
     )
 
     motor_client: providers.Singleton = providers.Singleton(
-        AsyncIOMotorClient,
+        AsyncMongoClient,
         _MONGODB_URI,
     )
 
