@@ -20,7 +20,7 @@ from .base import BaseCrawler
 
 logger = logging.getLogger(__name__)
 
-_BBC_RSS_URL = "http://feeds.bbci.co.uk/news/rss.xml"
+_BBC_RSS_URL = "https://feeds.bbci.co.uk/news/rss.xml"
 _TIMEOUT = 10.0
 _MAX_RESULTS = 5
 

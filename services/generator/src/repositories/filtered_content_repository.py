@@ -3,7 +3,7 @@
 import logging
 from typing import Optional
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.asynchronous.database import AsyncDatabase
 
 from src.repositories.base import BaseFilteredContentRepository
 
@@ -15,7 +15,7 @@ _COLLECTION = "filtered_content"
 class FilteredContentRepository(BaseFilteredContentRepository):
     """Reads filtered content documents from MongoDB."""
 
-    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+    def __init__(self, db: AsyncDatabase) -> None:
         self._col = db[_COLLECTION]
 
     async def find_by_podcast_id(self, podcast_id: str) -> Optional[dict]:

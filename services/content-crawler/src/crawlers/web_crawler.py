@@ -45,10 +45,13 @@ class WebCrawler(BaseCrawler):
             "no_redirect": "1",
         }
 
+        _HEADERS = {"User-Agent": "podcast-builder/1.0 (https://github.com/gurusin/podcast-builder)"}
         try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=True, headers=_HEADERS) as client:
                 resp = await client.get(_DDG_URL, params=params)
                 resp.raise_for_status()
+                if not resp.content:
+                    return chunks
                 data = resp.json()
 
             # Abstract / summary text

@@ -20,7 +20,10 @@ from datetime import datetime, timezone
 
 from src.events.kafka_producer import KafkaProducer
 from src.factories.content_source_factory import ContentSourceFactory
+from src.filters.deduplication_filter import DeduplicationFilter
 from src.filters.filter_pipeline import FilterPipeline
+from src.filters.quality_filter import QualityFilter
+from src.filters.relevance_filter import RelevanceFilter
 from src.repositories.base import BaseContentRepository
 from src.repositories.podcast_status_repository import PodcastStatusRepository
 
@@ -57,7 +60,8 @@ class CrawlerOrchestrator:
         rss_factory: ContentSourceFactory,
         raw_repo: BaseContentRepository,
         filtered_repo: BaseContentRepository,
-        filter_pipeline: FilterPipeline,
+        quality_filter: QualityFilter,
+        dedup_filter: DeduplicationFilter,
         producer: KafkaProducer,
         podcast_status_repo: PodcastStatusRepository,
     ) -> None:
@@ -66,7 +70,8 @@ class CrawlerOrchestrator:
         self._rss_factory = rss_factory
         self._raw_repo = raw_repo
         self._filtered_repo = filtered_repo
-        self._filter_pipeline = filter_pipeline
+        self._quality_filter = quality_filter
+        self._dedup_filter = dedup_filter
         self._producer = producer
         self._podcast_status_repo = podcast_status_repo
 
@@ -118,8 +123,13 @@ class CrawlerOrchestrator:
         # 4. Persist raw chunks
         await self._raw_repo.save(podcast_id, raw_chunks)
 
-        # 5. Filter
-        filtered_chunks = self._filter_pipeline.run(raw_chunks)
+        # 5. Filter — build a per-request pipeline with the actual topic for relevance scoring
+        topic_pipeline = FilterPipeline(strategies=[
+            self._quality_filter,
+            self._dedup_filter,
+            RelevanceFilter(topic),
+        ])
+        filtered_chunks = topic_pipeline.run(raw_chunks)
 
         logger.info(
             "Filtered to %d chunks for podcastId=%r",

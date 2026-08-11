@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timezone
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.asynchronous.database import AsyncDatabase
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class PodcastStatusRepository:
     terminal states — those are the Generator's responsibility.
     """
 
-    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+    def __init__(self, db: AsyncDatabase) -> None:
         self._col = db[_COLLECTION]
 
     async def set_crawling(self, podcast_id: str) -> None:

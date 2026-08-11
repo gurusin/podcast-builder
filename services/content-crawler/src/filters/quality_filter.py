@@ -6,7 +6,7 @@ expensive TF-IDF relevance scoring step.
 """
 from .base import BaseFilterStrategy
 
-_MIN_CONTENT_LENGTH = 200
+_MIN_CONTENT_LENGTH = 50
 
 
 class QualityFilter(BaseFilterStrategy):

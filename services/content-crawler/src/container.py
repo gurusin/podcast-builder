@@ -154,7 +154,8 @@ class Container(containers.DeclarativeContainer):
         rss_factory=rss_crawler_factory,
         raw_repo=raw_content_repository,
         filtered_repo=filtered_content_repository,
-        filter_pipeline=filter_pipeline,
+        quality_filter=quality_filter,
+        dedup_filter=deduplication_filter,
         producer=kafka_producer,
         podcast_status_repo=podcast_status_repository,
     )

@@ -14,7 +14,7 @@ Document schema
 """
 from datetime import datetime, timezone
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.asynchronous.database import AsyncDatabase
 
 from .base import BaseContentRepository
 
@@ -30,7 +30,7 @@ class FilteredContentRepository(BaseContentRepository):
 
     _COLLECTION = "filtered_content"
 
-    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+    def __init__(self, db: AsyncDatabase) -> None:
         self._collection = db[self._COLLECTION]
 
     async def save(self, podcast_id: str, chunks: list[dict]) -> None:

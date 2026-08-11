@@ -1,5 +1,6 @@
 """Generator orchestrator — drives the end-to-end podcast generation pipeline."""
 
+import asyncio
 import logging
 import os
 
@@ -92,9 +93,12 @@ class GeneratorOrchestrator:
                 len(script),
             )
 
-            # Step 6 — synthesize audio
+            # Step 6 — synthesize audio (run in thread to avoid blocking the event loop)
             output_path = os.path.join(self._podcasts_dir, f"{podcast_id}.mp3")
-            duration_secs = tts_engine.synthesize(script, output_path)
+            loop = asyncio.get_event_loop()
+            duration_secs = await loop.run_in_executor(
+                None, tts_engine.synthesize, script, output_path
+            )
             logger.info(
                 "GeneratorOrchestrator: synthesized %s (%.1fs)", output_path, duration_secs
             )
