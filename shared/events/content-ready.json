@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ContentReady",
+  "type": "object",
+  "required": ["eventType", "version", "podcastId", "chunkCount", "ts"],
+  "properties": {
+    "eventType":  { "type": "string", "const": "ContentReady" },
+    "version":    { "type": "string", "const": "1.0" },
+    "podcastId":  { "type": "string", "format": "uuid" },
+    "chunkCount": { "type": "integer", "minimum": 0 },
+    "ts":         { "type": "string", "format": "date-time" }
+  }
+}

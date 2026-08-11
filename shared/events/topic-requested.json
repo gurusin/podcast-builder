@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TopicRequested",
+  "type": "object",
+  "required": ["eventType", "version", "podcastId", "topic", "durationHint", "ts"],
+  "properties": {
+    "eventType":    { "type": "string", "const": "TopicRequested" },
+    "version":      { "type": "string", "const": "1.0" },
+    "podcastId":    { "type": "string", "format": "uuid" },
+    "topic":        { "type": "string", "minLength": 1, "maxLength": 500 },
+    "durationHint": { "type": "string", "enum": ["short", "medium", "long"] },
+    "ts":           { "type": "string", "format": "date-time" }
+  }
+}
