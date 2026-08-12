@@ -101,6 +101,23 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ── Streamlit Frontend ──────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: podcast-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      # Requests from the Streamlit server hit nginx on the internal network
+      API_BASE_URL: http://nginx
+      # Links rendered in the user's browser point to localhost
+      PUBLIC_BASE_URL: http://localhost
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
   # ── Nginx (API Gateway) ─────────────────────────────────────────────────────
   nginx:
     image: nginx:alpine
