@@ -3,6 +3,10 @@
 Event-driven monorepo. A user submits a topic; three microservices collaborate to crawl the internet, filter content, generate a script, validate it for accuracy, synthesise it with TTS, and serve an MP3.
 
 ```
+User → Streamlit UI (port 8501)
+         │  (submits topic, polls status, plays audio)
+         │
+         ↓
 User → Nginx (port 80)
          │
          ├─ POST /podcasts ──→ Request Processor (NestJS)
@@ -35,6 +39,7 @@ User → Nginx (port 80)
 | `request-processor` | TypeScript / NestJS | 3000 (internal) | REST API, CQRS, WebSocket status push |
 | `content-crawler` | Python 3.11 | — | Crawl web sources, filter, persist chunks |
 | `generator` | Python 3.11 | — | Script writing, validation, TTS synthesis |
+| `frontend` | Python / Streamlit | 8501 | Dashboard — submit topics, track status, play audio |
 
 ## Infrastructure
 
@@ -56,17 +61,24 @@ cd podcast-builder/podcast-system
 # 2. Start everything (first run builds all images)
 docker compose up --build
 
-# 3. Submit a topic
+# 3. Open the Streamlit dashboard
+open http://localhost:8501
+# Submit a topic, watch status update in real time, and play the audio —
+# no curl required. The UI polls the API and renders an audio player on completion.
+
+# Alternatively, use the API directly:
+
+# Submit a topic
 curl -s -X POST http://localhost/podcasts \
   -H "Content-Type: application/json" \
   -d '{"topic": "artificial intelligence", "durationHint": "medium"}' | jq
 
 # → { "podcastId": "<uuid>", "status": "PENDING" }
 
-# 4. Poll until DONE
+# Poll until DONE
 curl -s http://localhost/podcasts/<uuid> | jq
 
-# 5. When status is DONE, play the podcast in a browser
+# Play the podcast
 open http://localhost/audio/<uuid>.mp3
 # or download it
 curl -o podcast.mp3 http://localhost/audio/<uuid>.mp3
@@ -257,6 +269,11 @@ CI runs on every push via `.github/workflows/ci.yml` with 80% coverage gate enfo
 
 ```
 podcast-system/
+├── frontend/                           # Streamlit dashboard (port 8501)
+│   ├── app.py                          # UI — submit, poll, play
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── smoke_test.py
 ├── services/
 │   ├── request-processor/          # TypeScript / NestJS
 │   │   └── src/
